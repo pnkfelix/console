@@ -328,7 +328,9 @@ impl Server {
             .aggregator
             .take()
             .expect("cannot start server multiple times");
-        let aggregate = tokio::spawn(aggregate.run());
+        let aggregate = tokio::task::Builder::new()
+            .name(&format!("aggregator({})", self.addr))
+            .spawn(aggregate.run());
         let addr = self.addr;
         let res = builder
             .add_service(proto::tasks::tasks_server::TasksServer::new(self))

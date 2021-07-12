@@ -11,23 +11,35 @@ OPTIONS:
     blocks      Includes a (misbehaving) blocking task
     burn        Includes a (misbehaving) task that spins CPU with self-wakes
     coma        Includes a (misbehaving) task that forgets to register a waker
+    no-norm     Excludes the behaving tree of ~30 spawned tasks
 "#;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     console_subscriber::init();
+    let mut spawn_norm = true;
     // spawn optional extras from CLI args
     // skip first which is command name
+    let mut opt_handles = Vec::new();
     for opt in std::env::args().skip(1) {
         match &*opt {
             "blocks" => {
-                tokio::spawn(double_sleepy(1, 10));
+                opt_handles.push(tokio::task::Builder::new()
+                                 .name("blocks")
+                                 .spawn(double_sleepy(1, 10)));
             }
             "coma" => {
-                tokio::spawn(std::future::pending::<()>());
+                opt_handles.push(tokio::task::Builder::new()
+                                 .name("coma")
+                                 .spawn(std::future::pending::<()>()));
             }
             "burn" => {
-                tokio::spawn(burn(1, 10));
+                opt_handles.push(tokio::task::Builder::new()
+                                 .name("burn")
+                                 .spawn(burn(1, 10)));
+            }
+            "no-norm" => {
+                spawn_norm = false;
             }
             "help" | "-h" => {
                 eprintln!("{}", HELP);
@@ -41,14 +53,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    let task1 = tokio::spawn(spawn_tasks(1, 10));
-    let task2 = tokio::spawn(spawn_tasks(10, 30));
+    if spawn_norm {
+        let task1 = tokio::task::Builder::new()
+            .name("norm-task 1")
+            .spawn(spawn_tasks(1, 10));
+        let task2 = tokio::task::Builder::new()
+            .name("norm-task 2")
+            .spawn(spawn_tasks(10, 30));
 
-    let result = tokio::try_join! {
-        task1,
-        task2,
-    };
-    result?;
+         let result = tokio::try_join! {
+             task1,
+             task2,
+         };
+        result?;
+    }
+
+    for handle in opt_handles {
+        let opt_result = tokio::try_join!(handle);
+        opt_result?;
+    }
 
     Ok(())
 }
@@ -57,7 +80,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 async fn spawn_tasks(min: u64, max: u64) {
     loop {
         for i in min..max {
-            tokio::spawn(wait(i));
+            tokio::task::Builder::new()
+                .name(&format!("norm-wait({})", i))
+                .spawn(wait(i));
             tokio::time::sleep(Duration::from_secs(max) - Duration::from_secs(i)).await;
         }
     }
