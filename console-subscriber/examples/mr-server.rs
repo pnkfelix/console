@@ -1,10 +1,14 @@
 use bytes::Bytes;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    console_subscriber::init();
+    // console_subscriber::init();
+    console_subscriber::build()
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     connect::connect().await;
 }

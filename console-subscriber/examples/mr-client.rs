@@ -5,9 +5,14 @@ use std::io::{Read, Seek, SeekFrom};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use tracing_subscriber::prelude::*;
+
 #[tokio::main]
 pub async fn main() -> Result<()> {
-    console_subscriber::init();
+    // console_subscriber::init();
+    console_subscriber::build()
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     let name = std::env::args().next();
     if std::env::args().skip(1).len() == 0 {
