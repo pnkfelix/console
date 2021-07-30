@@ -16,7 +16,9 @@ OPTIONS:
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    console_subscriber::init();
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::layer::SubscriberExt;
+    console_subscriber::build().with(tracing_subscriber::fmt::layer()).init();
     let mut spawn_norm = true;
     // spawn optional extras from CLI args
     // skip first which is command name
